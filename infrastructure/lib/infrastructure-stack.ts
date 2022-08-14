@@ -2,6 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { aws_lambda as lambda } from 'aws-cdk-lib';
 import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class InfrastructureStack extends cdk.Stack {
@@ -17,5 +19,46 @@ export class InfrastructureStack extends cdk.Stack {
     new LambdaRestApi(this, 'apigateway-user-auth', {
       handler: userAuthFunction
     })
+
+    // 👇 create VPC in which we'll launch the Instance
+    const vpc = new ec2.Vpc(this, 'my-cdk-vpc', {
+      cidr: '10.0.0.0/16',
+      natGateways: 0,
+      subnetConfiguration: [
+        {name: 'public', cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC},
+      ],
+    });
+
+    // 👇 create Security Group for the Instance
+    const webserverSG = new ec2.SecurityGroup(this, 'webserver-sg', {
+      vpc,
+      allowAllOutbound: true,
+    });
+    webserverSG.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(22),
+      'allow SSH access from anywhere',
+    );
+    // 👇 create a Role for the EC2 Instance
+    const webserverRole = new Role(this, 'webserver-role', {
+      assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+      managedPolicies: [],
+    });
+        // 👇 create the EC2 Instance
+    new ec2.Instance(this, 'ec2-ssh-server', {
+      vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PUBLIC,
+      },
+      role: webserverRole,
+      securityGroup: webserverSG,
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.BURSTABLE2,
+        ec2.InstanceSize.MICRO,
+      ),
+      machineImage: new ec2.AmazonLinuxImage({
+        generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
+      })
+    });
   }
 }
