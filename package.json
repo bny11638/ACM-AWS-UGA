@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build-lambdas": "tsc --project lambdas/tsconfig.json",
-    "deploy": "cd infrastructure && cdk deploy && cd ..",
+    "build-lambdas": "esbuild lambdas/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build-artifacts/lambdas/index.js",
+    "deploy-infrastructure": "npm run build-lambdas && cd infrastructure && cdk deploy InfrastructureStack && cd ..",
     "local-deploy": "cd acm-frontend && npm start"
   },
   "repository": {
