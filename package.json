@@ -1,0 +1,20 @@
+{
+  "name": "acm-aws",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build-lambdas": "tsc --project lambdas/tsconfig.json",
+    "deploy": "cd infrastructure && cdk deploy && cd .."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bny11638/ACM-SSH-SERVER.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bny11638/ACM-SSH-SERVER/issues"
+  },
+  "homepage": "https://github.com/bny11638/ACM-SSH-SERVER#readme"
+}
