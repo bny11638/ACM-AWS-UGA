@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build-lambdas": "tsc --project lambdas/tsconfig.json",
-    "deploy": "cd infrastructure && cdk deploy && cd .."
+    "deploy": "cd infrastructure && cdk deploy && cd ..",
+    "local-deploy": "cd acm-frontend && npm start"
   },
   "repository": {
     "type": "git",
