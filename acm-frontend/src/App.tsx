@@ -1,7 +1,9 @@
 import React from 'react';
+import { Hello } from './components/Hello';
 import './App.css';
 
 function App() {
+  const shouldRender = true;
   return (
     <div className="App">
       <header className="App-header">
@@ -15,6 +17,7 @@ function App() {
           rel="noopener noreferrer"
         >
           Learn React
+          {shouldRender && <Hello extraText='hello' extra={5}></Hello>}
         </a>
       </header>
     </div>
