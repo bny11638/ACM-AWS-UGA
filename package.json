@@ -6,6 +6,7 @@
   "scripts": {
     "build-lambda-init": "rm -rf ./build-artifacts/lambdas/user-initialization/ && esbuild lambdas/user-initialization/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build-artifacts/lambdas/user-initialization/index.js",
     "deploy-infrastructure": "npm run build-lambdas && cd infrastructure && cdk deploy InfrastructureStack && cd ..",
+    "deploy-acm-frontend": "cd acm-frontend && npm run build && cd ../infrastructure && cdk deploy FrontendStack && cd ..",
     "local-deploy": "cd acm-frontend && npm start"
   },
   "repository": {
