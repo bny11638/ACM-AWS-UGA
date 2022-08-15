@@ -3,22 +3,12 @@ import { Construct } from 'constructs';
 import { aws_lambda as lambda } from 'aws-cdk-lib';
 import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Role, ServicePrincipal, PolicyStatement, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class InfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    // The code that defines your stack goes here
-    const userAuthFunction = new lambda.Function(this, 'user-initalization', {
-      runtime: lambda.Runtime.NODEJS_16_X,
-      handler: 'index.userInitHandler',
-      code: lambda.Code.fromAsset("../build-artifacts/lambdas")
-    });
-    new LambdaRestApi(this, 'apigateway-user-auth', {
-      handler: userAuthFunction
-    })
 
     // 👇 create VPC in which we'll launch the Instance
     const vpc = new ec2.Vpc(this, 'my-cdk-vpc', {
@@ -42,10 +32,10 @@ export class InfrastructureStack extends cdk.Stack {
     // 👇 create a Role for the EC2 Instance
     const webserverRole = new Role(this, 'webserver-role', {
       assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
-      managedPolicies: [],
+      managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMFullAccess')],
     });
-        // 👇 create the EC2 Instance
-    new ec2.Instance(this, 'ec2-ssh-server', {
+    // 👇 create the EC2 Instance
+    const acmEc2Ssh = new ec2.Instance(this, 'ec2-ssh-server', {
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PUBLIC,
@@ -60,5 +50,19 @@ export class InfrastructureStack extends cdk.Stack {
         generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
       })
     });
+    // The code that defines your stack goes here
+    const userAuthFunction = new lambda.Function(this, 'user-initalization', {
+      runtime: lambda.Runtime.NODEJS_16_X,
+      handler: 'index.userInitHandler',
+      code: lambda.Code.fromAsset("../build-artifacts/lambdas/user-initialization/")
+    });
+    const ec2AcmSshPolicy = new PolicyStatement({
+      actions: ['ec2:*', 'ssm:*'],
+      resources: ["*"]
+    })
+    userAuthFunction.addToRolePolicy(ec2AcmSshPolicy);
+    new LambdaRestApi(this, 'apigateway-user-auth', {
+      handler: userAuthFunction
+    })
   }
 }

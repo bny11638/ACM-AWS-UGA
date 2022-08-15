@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build-lambdas": "esbuild lambdas/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build-artifacts/lambdas/index.js",
+    "build-lambda-init": "rm -rf ./build-artifacts/lambdas/user-initialization/ && esbuild lambdas/user-initialization/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build-artifacts/lambdas/user-initialization/index.js",
     "deploy-infrastructure": "npm run build-lambdas && cd infrastructure && cdk deploy InfrastructureStack && cd ..",
     "local-deploy": "cd acm-frontend && npm start"
   },
