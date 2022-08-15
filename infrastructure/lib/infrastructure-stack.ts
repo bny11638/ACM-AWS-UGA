@@ -4,12 +4,19 @@ import { aws_lambda as lambda } from 'aws-cdk-lib';
 import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Role, ServicePrincipal, PolicyStatement, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { aws_ssm as ssm } from 'aws-cdk-lib';
+import { ec2UserInitDocument } from './util/ssmDocuments';
 
 export class InfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+
+    // Create SSM Document to initialize the new ssh users in the EC2 instance
+    const cfnDocument = new ssm.CfnDocument(this, 'EC2-SSH-init-user', {
+      content: ec2UserInitDocument,
+      documentType: 'Command'
+    });
     // 👇 create VPC in which we'll launch the Instance
     const vpc = new ec2.Vpc(this, 'my-cdk-vpc', {
       cidr: '10.0.0.0/16',
