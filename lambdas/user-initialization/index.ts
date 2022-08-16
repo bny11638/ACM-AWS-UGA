@@ -5,6 +5,15 @@ import { CreateKeyPairCommand, EC2Client } from '@aws-sdk/client-ec2';
 export const userInitHandler = async (event: APIGatewayEvent, context: Context): Promise<APIGatewayProxyResultV2> => {
     console.log(`Event: ${JSON.stringify(event, null, 2)}`);
     console.log(`Context: ${JSON.stringify(context, null, 2)}`);
+    console.log(JSON.stringify(process.env));
+    if (process.env.SSH_DOCUMENT === undefined || process.env.EC2_INSTANCE === undefined) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                message: 'User SSH initialization failed please contact system administrator.',
+            })
+        }   
+    }
     if (event.body === null) {
         return {
             statusCode: 500,
@@ -26,7 +35,7 @@ export const userInitHandler = async (event: APIGatewayEvent, context: Context):
     }
     const command = await ec2Client.send(new CreateKeyPairCommand({KeyName: bodyObject.username + "-aws-key"}));
     if (command !== undefined && command.KeyMaterial !== undefined) {
-        await ssmClient.send(new SendCommandCommand({DocumentName: "InfrastructureStack-EC2SSHinituser-NrqDit63S3eq", InstanceIds:['i-07f4c881dfbafe89c'], Parameters: {action: ["initialize"], user: [bodyObject.username], privateKey:[JSON.stringify(command.KeyMaterial)] }}));
+        await ssmClient.send(new SendCommandCommand({DocumentName: process.env.SSH_DOCUMENT, InstanceIds:[process.env.EC2_INSTANCE], Parameters: {action: ["initialize"], user: [bodyObject.username], privateKey:[JSON.stringify(command.KeyMaterial)] }}));
         return {
             statusCode: 200,
             body: command.KeyMaterial

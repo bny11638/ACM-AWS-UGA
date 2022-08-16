@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { aws_lambda as lambda } from 'aws-cdk-lib';
-import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
+import { LambdaRestApi, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Role, ServicePrincipal, PolicyStatement, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 import { aws_ssm as ssm } from 'aws-cdk-lib';
@@ -15,7 +15,8 @@ export class InfrastructureStack extends cdk.Stack {
     // Create SSM Document to initialize the new ssh users in the EC2 instance
     const cfnDocument = new ssm.CfnDocument(this, 'EC2-SSH-init-user', {
       content: ec2UserInitDocument,
-      documentType: 'Command'
+      documentType: 'Command',
+      name: "EC2-SSH-init-user"
     });
     // 👇 create VPC in which we'll launch the Instance
     const vpc = new ec2.Vpc(this, 'my-cdk-vpc', {
@@ -57,19 +58,47 @@ export class InfrastructureStack extends cdk.Stack {
         generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
       })
     });
-    // The code that defines your stack goes here
-    const userAuthFunction = new lambda.Function(this, 'user-initalization', {
+    // Creates user ssh initialization function
+    const userSSHFunction = new lambda.Function(this, 'user-ssh', {
       runtime: lambda.Runtime.NODEJS_16_X,
       handler: 'index.userInitHandler',
-      code: lambda.Code.fromAsset("../build-artifacts/lambdas/user-initialization/")
+      code: lambda.Code.fromAsset("../build-artifacts/lambdas/user-initialization/"),
+      environment: {
+        SSH_DOCUMENT: cfnDocument.name as string,
+        EC2_INSTANCE: acmEc2Ssh.instanceId
+      },
+      functionName: "user-ssh"
     });
+    // Adds ec2 & ssm permissions to user-ssh lambda
     const ec2AcmSshPolicy = new PolicyStatement({
       actions: ['ec2:*', 'ssm:*'],
       resources: ["*"]
     })
-    userAuthFunction.addToRolePolicy(ec2AcmSshPolicy);
-    new LambdaRestApi(this, 'apigateway-user-auth', {
-      handler: userAuthFunction
+    userSSHFunction.addToRolePolicy(ec2AcmSshPolicy);
+
+    // Creates user iam init function
+    const userIAMFunction = new lambda.Function(this, 'user-iam', {
+      runtime: lambda.Runtime.NODEJS_16_X,
+      handler: 'index.userIAMHandler',
+      code: lambda.Code.fromAsset("../build-artifacts/lambdas/user-iam-creation/"),
+      functionName: "user-iam"
+    });
+    // Adds ec2 & ssm permissions to user-ssh lambda
+    const iamCreationPolicy = new PolicyStatement({
+      actions: ['iam:*'],
+      resources: ["*"]
     })
+    userIAMFunction.addToRolePolicy(iamCreationPolicy);
+
+    // Creates the apigateway for our endpoints (creates url to execute lambda function from)
+    const apiGateway = new LambdaRestApi(this, 'apigateway-user-auth', {
+      handler: userSSHFunction,
+      proxy: false
+    })
+    const userEndpoint = apiGateway.root.addResource("user");
+    const sshInit = userEndpoint.addResource("ssh-init");
+    sshInit.addMethod("POST", new LambdaIntegration(userSSHFunction));
+    const iamInit = userEndpoint.addResource("iam-init");
+    iamInit.addMethod("POST", new LambdaIntegration(userIAMFunction));
   }
 }
